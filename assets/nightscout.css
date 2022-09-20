@@ -1,0 +1,7 @@
+body {
+    font-family: sans-serif;
+    padding: 10px;
+}
+.DateRangePickerInput__withBorder, DateRangePickerInput__withBorder_2 {
+    border: none;
+}
