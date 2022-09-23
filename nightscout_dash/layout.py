@@ -4,6 +4,8 @@ from dash import Dash, html, dcc, dash_table
 import dash_bootstrap_components as dbc
 import datetime
 
+from nightscout_dash.distribution_table import distribution_table_column_contents
+
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 
@@ -63,46 +65,7 @@ ns_layout = html.Div(
         dbc.Row(
             [
                 dbc.Col(
-                    [
-                        html.H2(children="CGM distribution summary"),
-                        html.Div(id="distribution-summary-text", children=""),
-                        dash_table.DataTable(
-                            id="distribution-summary-table",
-                            row_deletable=True,
-                            columns=[
-                                {
-                                    "id": "lower",
-                                    "name": "Lower limit",
-                                    "editable": True,
-                                    "type": "numeric",
-                                },
-                                {
-                                    "id": "upper",
-                                    "name": "Upper limit",
-                                    "editable": True,
-                                    "type": "numeric",
-                                },
-                                {
-                                    "id": "BG range",
-                                    "name": "BG range",
-                                    "editable": False,
-                                },
-                                {
-                                    "id": "percent",
-                                    "name": "Percent",
-                                    "type": "numeric",
-                                    "editable": False,
-                                    "format": dash_table.FormatTemplate.percentage(1),
-                                },
-                            ],
-                            data=pd.DataFrame(
-                                data={
-                                    "lower": [None, 54, 63, 130],
-                                    "upper": [54, 63, 130, None],
-                                }
-                            ).to_dict(orient="records"),
-                        ),
-                    ],
+                    distribution_table_column_contents,
                     width=6,
                 ),
                 dbc.Col(

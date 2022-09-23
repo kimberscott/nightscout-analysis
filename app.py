@@ -1,12 +1,8 @@
-import numpy as np
 from dash import (
     Dash,
     Input,
     Output,
-    State,
     callback,
-    no_update,
-    dash_table,
 )
 import dash_bootstrap_components as dbc
 
@@ -17,8 +13,9 @@ import plotly.graph_objects as go
 from nightscout_dash.layout import ns_layout
 
 # Leave this in to make sure we load the callback!
-# TODO: create register_callbacks function
+# TODO: create register_callbacks functions
 from nightscout_dash.update_data import load_nightscout_data
+import nightscout_dash.distribution_table
 
 
 @callback(
@@ -66,39 +63,6 @@ def update_graph(bg_data):
     )
     return {
         "graph": figure,
-    }
-
-
-@callback(
-    output={
-        "data": Output("distribution-summary-table", "data"),
-        "summary_text": Output("distribution-summary-text", "children"),
-    },
-    inputs={
-        "bg_data": Input("subset-bg-data", "data"),
-        "table_data": State("distribution-summary-table", "data"),
-        "table_update": Input("distribution-summary-table", "data_timestamp"),
-    },
-)
-def update_table(bg_data, table_data, table_update):
-
-    bg_data = pd.read_json(bg_data, orient="split")
-    bg = bg_data.loc[bg_data["eventType"] == "sgv", "bg"]
-    n_records = len(bg)
-
-    for row in table_data:
-        try:
-            lower = float(row["lower"] or 0)
-            upper = float(row["upper"] or np.inf)
-            row["BG range"] = f"[{lower:.0f}, {upper:.0f})"
-            row["percent"] = sum((bg >= lower) & (bg < upper)) / n_records
-        except ValueError:
-            row["BG range"] = "N/A"
-            row["percent"] = np.nan
-
-    return {
-        "data": table_data,
-        "summary_text": f"{n_records} readings over {bg_data['date'].nunique()} days.",
     }
 
 
