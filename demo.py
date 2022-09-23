@@ -14,16 +14,26 @@ TREATMENTS_ENDPOINT = NIGHTSCOUT_URL + "treatments.json"
 
 
 def add_time_identifiers(df: pd.DataFrame, datetime_col_name: str) -> None:
-    df["date"] = df[datetime_col_name].apply(lambda dt: dt.date())
-    df["weekday"] = df[datetime_col_name].apply(lambda dt: dt.strftime("%A"))
-    df["weekday_number"] = df[datetime_col_name].apply(lambda dt: dt.weekday())
-    df["time"] = df[datetime_col_name].apply(lambda dt: dt.time())
-    df["time_str"] = df[datetime_col_name].apply(lambda dt: dt.time().strftime("%H:%M"))
+    df["date"] = df[datetime_col_name].apply(
+        lambda dt: None if dt is None else dt.date()
+    )
+    df["weekday"] = df[datetime_col_name].apply(
+        lambda dt: None if dt is None else dt.strftime("%A")
+    )
+    df["weekday_number"] = df[datetime_col_name].apply(
+        lambda dt: None if dt is None else dt.weekday()
+    )
+    df["time"] = df[datetime_col_name].apply(
+        lambda dt: None if dt is None else dt.time()
+    )
+    df["time_str"] = df[datetime_col_name].apply(
+        lambda dt: None if dt is None else dt.time().strftime("%H:%M")
+    )
 
 
 def fetch_nightscout_data(
     start_date: datetime.datetime = None, end_date: datetime.datetime = None
-) -> (pd.DataFrame, pd.DataFrame):
+) -> pd.DataFrame:
 
     date_strs = (
         start_date.strftime("%Y-%m-%d") if start_date else None,
@@ -45,16 +55,21 @@ def fetch_nightscout_data(
         ENTRIES_ENDPOINT, params=bg_params, headers={"accept": "application/json"}
     ).json()
     bg = pd.DataFrame.from_records(bg_list)
-    bg["datetime"] = pd.to_datetime(bg["date"], unit="ms", utc=True)
-    bg["datetime"] = bg["datetime"].apply(lambda dt: dt.astimezone("US/Eastern"))
+    bg["datetime"] = pd.to_datetime(bg["date"], unit="ms", utc=True).dt.tz_convert(
+        tzlocal.get_localzone_name()
+    )
     # Limit columns
-    # TODO: factor out into helper
+
     bg_cols = ["datetime", "sgv", "mbg", "type"]
+
+    # TODO: factor out into helper
     bg = bg[[col for col in bg_cols if col in bg]]
     for col in bg_cols:
         if col not in bg:
             bg[col] = None
-    add_time_identifiers(bg, "datetime")
+    # Combine bg values into a single column - we already have provenance in type column
+    bg["bg"] = bg["sgv"].fillna(bg["mbg"])
+    bg.drop(columns=["sgv", "mbg"], inplace=True)
 
     # Fetch treatment entries
     treatment_params = {
@@ -70,19 +85,34 @@ def fetch_nightscout_data(
     ).json()
     treatments = pd.DataFrame.from_records(treatments_list)
     if "created_at" in treatments.columns:
-        treatments["datetime"] = pd.to_datetime(treatments["created_at"])
-        treatments["datetime"] = treatments["datetime"].apply(
-            lambda dt: dt.astimezone(tzlocal.get_localzone())
+        treatments["datetime"] = pd.to_datetime(treatments["created_at"]).dt.tz_convert(
+            tzlocal.get_localzone_name()
         )
     # Limit columns
-    treatment_cols = ["datetime", "carbs", "insulin", "eventType"]
+    treatment_cols = [
+        "datetime",
+        "carbs",
+        "insulin",
+        "eventType",
+        "enteredBy",
+        "notes",
+        "entered by",
+    ]
     treatments = treatments[[col for col in treatment_cols if col in treatments]]
     for col in treatment_cols:
         if col not in treatments:
             treatments[col] = None
-    add_time_identifiers(treatments, "datetime")
+    treatments["enteredBy"] = treatments["enteredBy"].fillna(treatments["entered by"])
+    treatments.drop(columns=["entered by"], inplace=True)
 
-    return bg, treatments
+    all_data = pd.concat([bg, treatments])
+    all_data["eventType"] = all_data["type"].fillna(all_data["eventType"])
+    all_data.drop(columns=["type"], inplace=True)
+    all_data.sort_values(by="datetime", inplace=True)
+    all_data.reset_index(drop=True, inplace=True)
+    add_time_identifiers(all_data, "datetime")
+
+    return all_data
 
 
 if __name__ == "__main__":
