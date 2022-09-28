@@ -11,6 +11,7 @@ load_dotenv()
 NIGHTSCOUT_URL = os.getenv("NIGHTSCOUT_URL")
 ENTRIES_ENDPOINT = NIGHTSCOUT_URL + "entries.json"
 TREATMENTS_ENDPOINT = NIGHTSCOUT_URL + "treatments.json"
+PROFILE_ENDPOINT = NIGHTSCOUT_URL + "profile.json"
 
 
 def add_time_identifiers(df: pd.DataFrame, datetime_col_name: str) -> None:
@@ -29,6 +30,16 @@ def add_time_identifiers(df: pd.DataFrame, datetime_col_name: str) -> None:
     df["time_str"] = df[datetime_col_name].apply(
         lambda dt: None if dt is None else dt.time().strftime("%H:%M")
     )
+
+
+def fetch_profile_data() -> pd.DataFrame:
+    profile_list = requests.get(
+        PROFILE_ENDPOINT, params={}, headers={"accept": "application/json"}
+    ).json()
+    profiles = pd.DataFrame.from_records(profile_list)
+    # profiles["datetime"] = pd.to_datetime(profiles["startDate"], unit="ms", utc=True).dt.tz_convert(
+    #    tzlocal.get_localzone_name()
+    # )
 
 
 def fetch_nightscout_data(
@@ -97,6 +108,9 @@ def fetch_nightscout_data(
         "enteredBy",
         "notes",
         "entered by",
+        "duration",
+        "absolute",
+        "reason",
     ]
     treatments = treatments[[col for col in treatment_cols if col in treatments]]
     for col in treatment_cols:
