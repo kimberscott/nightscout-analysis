@@ -18,15 +18,8 @@ from datetime import date
 import datetime
 import tzlocal
 
-start_date = date.fromisoformat("2022-09-01")
-end_date = date.fromisoformat("2022-09-07")
 
-all_bg_data = fetch_nightscout_data(
-    date.fromisoformat("2022-09-01"),
-    date.fromisoformat("2022-09-07"),
-)
 
-#%% Fetch profile values
 
 import requests
 from demo import PROFILE_ENDPOINT
@@ -54,11 +47,6 @@ def fetch_profile_data() -> pd.DataFrame:
     return basals.sort_values(by=["startDate", "timeAsSeconds"])
 
 
-profiles = fetch_profile_data()
-
-#%% Function to get profile value at given time
-
-
 def get_scheduled_basal(profiles, timestamp):
     # We want the last *profile* before this timestamp, and
     # from that one, we want the last *time interval* before this timestamp
@@ -74,10 +62,16 @@ def get_scheduled_basal(profiles, timestamp):
     return applicable_profile_rows.iloc[-1]["value"]
 
 
-# b = get_scheduled_basal(profiles, datetime.datetime.now())
-
-
 #%%
+
+start_date = date.fromisoformat("2022-09-01")
+end_date = date.fromisoformat("2022-09-07")
+start_datetime = pd.to_datetime(start_date, utc=False).tz_localize(tzlocal.get_localzone_name())
+end_datetime = pd.to_datetime(end_date + datetime.timedelta(days=1), utc=False).tz_localize(tzlocal.get_localzone_name())
+
+all_bg_data = fetch_nightscout_data(start_date, end_date)
+
+profiles = fetch_profile_data()
 
 basal_rates = all_bg_data.loc[
     ~pd.isna(all_bg_data["duration"]),
@@ -91,9 +85,9 @@ basal_rates = all_bg_data.loc[
 basal_rates["expiration"] = basal_rates["datetime"] + basal_rates["duration"].apply(
     lambda x: datetime.timedelta(minutes=x)
 )
-# Find the cases where the expiration is before the next entry, and insert profile values there
+# Find the cases where the expiration is before the next entry, and insert profile values at the expiration time
 temp_basal_expirations = [
-    pd.to_datetime(start_date, utc=True).tz_convert(tzlocal.get_localzone_name())
+    start_datetime
 ] + list(
     basal_rates["expiration"].iloc[
         list(
@@ -113,10 +107,11 @@ regularly_scheduled_at_expiration = pd.DataFrame(
         ],
     }
 )
-# Find all the times where the regularly-scheduled basal profile would *change* during this interval
+
 
 #%%
 
+# Find all the times where the regularly-scheduled basal profile would *change* during this interval
 profiles["profile_number"] = profiles.groupby("profile_id").ngroup()
 profiles["next_profile_number"] = profiles["profile_number"] + 1
 profile_start_times = profiles[["profile_number", "startDate"]].drop_duplicates()
@@ -151,10 +146,6 @@ for profile_num in profiles["profile_number"].unique():
             how="cross",
         )
     )
-
-# Start at beginning of time range. Get the correct basal. Then get the
-#%%
-
 basal_change_times = pd.concat(profile_repeats)
 # Filter out rows from before the current profile actually took effect & after the next one did
 
@@ -181,13 +172,7 @@ profile_change_times = profile_change_times.loc[
 profile_change_times = pd.concat(
     [
         profile_change_times,
-        pd.Series(
-            [
-                pd.to_datetime(end_date + datetime.timedelta(days=1)).tz_localize(
-                    tzlocal.get_localzone_name()
-                )
-            ]
-        ),
+        pd.Series([end_datetime]),
     ]
 )
 basal_change_times = pd.concat(
@@ -229,12 +214,17 @@ all_basal_rates = pd.concat(
 all_basal_rates["scheduled"] = list(
     all_basal_rates["datetime"].apply(lambda x: get_scheduled_basal(profiles, x))
 )
-all_basal_rates.set_index("datetime", drop=False, inplace=True)
 all_basal_rates.drop_duplicates(inplace=True)
+all_basal_rates.set_index("datetime", drop=True, inplace=True)
+
 
 #%%
 
 basals_per_min = all_basal_rates.asfreq("min", method="ffill")
+basals_per_min = basals_per_min.loc[
+    (basals_per_min.index >= start_datetime) &
+    (basals_per_min.index <= end_datetime)
+]
 
 basals_np = basals_per_min["absolute"].to_numpy(dtype=float)
 cum_basal = np.cumsum(basals_np)
@@ -244,26 +234,21 @@ hourly_basals = cum_basal[59::60] / 60
 basals_per_hour = basals_per_min.iloc[30:-30:60]
 basals_per_hour["avg"] = hourly_basals
 
-basals_per_hour["time"] = basals_per_hour.index.time
+basals_per_hour["time_label"] = pd.to_datetime(start_datetime + (basals_per_hour.index - start_datetime) % datetime.timedelta(days=1))
 basals_per_hour["date"] = basals_per_hour.index.date
 #%%
 
 import plotly.io as pio
-
 pio.renderers.default = "browser"
 
-from plotly import graph_objects as go
 import plotly.express as px
-
-basals_per_hour["hour"] = basals_per_hour.index.hour
 
 figure = px.line(
     basals_per_hour,
-    x="hour",
+    x="time_label",
     y="avg",
     color="date",
-    markers=True
-    # marker_color=basals_per_hour["date"].astype("category"),
+    markers=True,
 )
 figure.update_layout(
     margin=dict(l=40, r=40, t=40, b=40),
@@ -272,5 +257,15 @@ figure.update_layout(
     xaxis_title="Time",
     yaxis_title="u/hr",
 )
-# figure.update_xaxes(tick0=datetime.time(0,0))
+
+figure.update_xaxes(
+    dtick=60*60*1000,
+    tickformat="%I%p",
+    ticklabelmode='period',
+    range=[
+        basals_per_hour['time_label'].min() - datetime.timedelta(minutes=5),
+        basals_per_hour['time_label'].max() + datetime.timedelta(minutes=5),
+    ]
+)
+figure.update_traces(line=dict(width=3))
 figure.show()
