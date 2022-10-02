@@ -19,8 +19,6 @@ import datetime
 import tzlocal
 
 
-
-
 import requests
 from demo import PROFILE_ENDPOINT
 
@@ -66,8 +64,12 @@ def get_scheduled_basal(profiles, timestamp):
 
 start_date = date.fromisoformat("2022-09-01")
 end_date = date.fromisoformat("2022-09-07")
-start_datetime = pd.to_datetime(start_date, utc=False).tz_localize(tzlocal.get_localzone_name())
-end_datetime = pd.to_datetime(end_date + datetime.timedelta(days=1), utc=False).tz_localize(tzlocal.get_localzone_name())
+start_datetime = pd.to_datetime(start_date, utc=False).tz_localize(
+    tzlocal.get_localzone_name()
+)
+end_datetime = pd.to_datetime(
+    end_date + datetime.timedelta(days=1), utc=False
+).tz_localize(tzlocal.get_localzone_name())
 
 all_bg_data = fetch_nightscout_data(start_date, end_date)
 
@@ -86,9 +88,7 @@ basal_rates["expiration"] = basal_rates["datetime"] + basal_rates["duration"].ap
     lambda x: datetime.timedelta(minutes=x)
 )
 # Find the cases where the expiration is before the next entry, and insert profile values at the expiration time
-temp_basal_expirations = [
-    start_datetime
-] + list(
+temp_basal_expirations = [start_datetime] + list(
     basal_rates["expiration"].iloc[
         list(
             np.flatnonzero(
@@ -222,8 +222,7 @@ all_basal_rates.set_index("datetime", drop=True, inplace=True)
 
 basals_per_min = all_basal_rates.asfreq("min", method="ffill")
 basals_per_min = basals_per_min.loc[
-    (basals_per_min.index >= start_datetime) &
-    (basals_per_min.index <= end_datetime)
+    (basals_per_min.index >= start_datetime) & (basals_per_min.index <= end_datetime)
 ]
 
 basals_np = basals_per_min["absolute"].to_numpy(dtype=float)
@@ -234,11 +233,15 @@ hourly_basals = cum_basal[59::60] / 60
 basals_per_hour = basals_per_min.iloc[30:-30:60]
 basals_per_hour["avg"] = hourly_basals
 
-basals_per_hour["time_label"] = pd.to_datetime(start_datetime + (basals_per_hour.index - start_datetime) % datetime.timedelta(days=1))
+basals_per_hour["time_label"] = pd.to_datetime(
+    start_datetime
+    + (basals_per_hour.index - start_datetime) % datetime.timedelta(days=1)
+)
 basals_per_hour["date"] = basals_per_hour.index.date
 #%%
 
 import plotly.io as pio
+
 pio.renderers.default = "browser"
 
 import plotly.express as px
@@ -259,13 +262,13 @@ figure.update_layout(
 )
 
 figure.update_xaxes(
-    dtick=60*60*1000,
+    dtick=60 * 60 * 1000,
     tickformat="%I%p",
-    ticklabelmode='period',
+    ticklabelmode="period",
     range=[
-        basals_per_hour['time_label'].min() - datetime.timedelta(minutes=5),
-        basals_per_hour['time_label'].max() + datetime.timedelta(minutes=5),
-    ]
+        basals_per_hour["time_label"].min() - datetime.timedelta(minutes=5),
+        basals_per_hour["time_label"].max() + datetime.timedelta(minutes=5),
+    ],
 )
 figure.update_traces(line=dict(width=3))
 figure.show()
