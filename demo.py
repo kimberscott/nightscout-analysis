@@ -88,7 +88,7 @@ def fetch_nightscout_data(
         for param, date in zip(treatment_param_names, date_strs)
         if date is not None
     }
-    treatment_params["count"] = 50 * days_in_range
+    treatment_params["count"] = 300 * days_in_range
     treatments_list = requests.get(
         TREATMENTS_ENDPOINT,
         params=treatment_params,

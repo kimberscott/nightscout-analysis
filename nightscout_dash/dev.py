@@ -63,7 +63,7 @@ def get_scheduled_basal(profiles, timestamp):
 #%%
 
 start_date = date.fromisoformat("2022-09-01")
-end_date = date.fromisoformat("2022-09-07")
+end_date = date.fromisoformat("2022-09-30")
 start_datetime = pd.to_datetime(start_date, utc=False).tz_localize(
     tzlocal.get_localzone_name()
 )
@@ -214,10 +214,9 @@ all_basal_rates = pd.concat(
 all_basal_rates["scheduled"] = list(
     all_basal_rates["datetime"].apply(lambda x: get_scheduled_basal(profiles, x))
 )
-all_basal_rates.drop_duplicates(inplace=True)
+
+all_basal_rates.drop_duplicates(subset=["datetime"], inplace=True)
 all_basal_rates.set_index("datetime", drop=True, inplace=True)
-
-
 #%%
 
 # Sample in time domain instead of storing only change points
@@ -254,7 +253,7 @@ cum_adjusted = np.cumsum(adjusted_np)
 cum_adjusted[60:] = cum_adjusted[60:] - cum_adjusted[:-60]
 hourly_adjusted = cum_adjusted[59::60] > 0
 
-basals_per_hour = basals_per_min.iloc[30:-30:60]
+basals_per_hour = basals_per_min.iloc[59::60]
 basals_per_hour["avg"] = hourly_basals
 basals_per_hour["is_adjusted"] = hourly_adjusted
 
@@ -263,6 +262,27 @@ basals_per_hour["time_label"] = pd.to_datetime(
     + (basals_per_hour.index - start_datetime) % datetime.timedelta(days=1)
 )
 basals_per_hour["date"] = basals_per_hour.index.date
+basals_per_hour.drop(columns=["absolute", "index"], inplace=True)
+basals_per_hour["time"] = basals_per_hour.index.time
+
+hourly_grouped = basals_per_hour[["time_label", "time", "scheduled", "avg"]].groupby(
+    "time_label"
+)
+hourly_summary = pd.DataFrame(
+    data={
+        "median": hourly_grouped["avg"].quantile(q=0.5),
+        "perc_05": hourly_grouped["avg"].quantile(q=0.05),
+        "perc_25": hourly_grouped["avg"].quantile(q=0.25),
+        "perc_75": hourly_grouped["avg"].quantile(q=0.75),
+        "perc_95": hourly_grouped["avg"].quantile(q=0.95),
+        "min": hourly_grouped["avg"].min(),
+        "max": hourly_grouped["avg"].max(),
+        "mean": hourly_grouped["avg"].mean(),
+        "mean_scheduled": hourly_grouped["scheduled"].mean(),
+        "perc_05_scheduled": hourly_grouped["scheduled"].quantile(q=0.05),
+        "perc_95_scheduled": hourly_grouped["scheduled"].quantile(q=0.95),
+    }
+)
 
 
 #%%
@@ -272,15 +292,16 @@ import plotly.io as pio
 pio.renderers.default = "browser"
 
 import plotly.express as px
+import plotly.graph_objects as go
 
-figure = px.line(
+fig = px.line(
     basals_per_hour,
     x="time_label",
     y="avg",
     color="date",
     markers=True,
 )
-figure.update_layout(
+fig.update_layout(
     margin=dict(l=40, r=40, t=40, b=40),
     height=400,
     title="Basal rates",
@@ -288,7 +309,7 @@ figure.update_layout(
     yaxis_title="u/hr",
 )
 
-figure.update_xaxes(
+fig.update_xaxes(
     dtick=60 * 60 * 1000,
     tickformat="%I%p",
     ticklabelmode="period",
@@ -297,5 +318,53 @@ figure.update_xaxes(
         basals_per_hour["time_label"].max() + datetime.timedelta(minutes=5),
     ],
 )
-figure.update_traces(line=dict(width=3))
-figure.show()
+fig.update_traces(line=dict(width=1))
+
+
+fig.add_trace(
+    go.Scatter(
+        x=hourly_summary.index,
+        y=hourly_summary["perc_25"],
+        mode="lines",
+    )
+)
+fig.add_trace(
+    go.Scatter(
+        x=hourly_summary.index,
+        y=hourly_summary["perc_75"],
+        fill="tonexty",
+        mode="lines",
+    )
+)
+# Scheduled basals
+fig.add_trace(
+    go.Scatter(
+        x=basals_per_hour["time_label"],
+        y=basals_per_hour["scheduled"],
+        mode="markers",
+    )
+)
+fig.add_trace(
+    go.Scatter(
+        x=hourly_summary.index,
+        y=hourly_summary["perc_05_scheduled"],
+        mode="lines",
+    )
+)
+fig.add_trace(
+    go.Scatter(
+        x=hourly_summary.index,
+        y=hourly_summary["perc_95_scheduled"],
+        fill="tonexty",
+        mode="lines",
+    )
+)
+# Mean actual basal
+fig.add_trace(
+    go.Scatter(
+        x=hourly_summary.index,
+        y=hourly_summary["mean"],
+        mode="lines+markers",
+    )
+)
+fig.show()
