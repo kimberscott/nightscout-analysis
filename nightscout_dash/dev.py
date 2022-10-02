@@ -271,10 +271,8 @@ hourly_grouped = basals_per_hour[["time_label", "time", "scheduled", "avg"]].gro
 hourly_summary = pd.DataFrame(
     data={
         "median": hourly_grouped["avg"].quantile(q=0.5),
-        "perc_05": hourly_grouped["avg"].quantile(q=0.05),
-        "perc_25": hourly_grouped["avg"].quantile(q=0.25),
-        "perc_75": hourly_grouped["avg"].quantile(q=0.75),
-        "perc_95": hourly_grouped["avg"].quantile(q=0.95),
+        "perc_10": hourly_grouped["avg"].quantile(q=0.1),
+        "perc_90": hourly_grouped["avg"].quantile(q=0.9),
         "min": hourly_grouped["avg"].min(),
         "max": hourly_grouped["avg"].max(),
         "mean": hourly_grouped["avg"].mean(),
@@ -324,26 +322,19 @@ fig.update_traces(line=dict(width=1))
 fig.add_trace(
     go.Scatter(
         x=hourly_summary.index,
-        y=hourly_summary["perc_25"],
+        y=hourly_summary["perc_10"],
         mode="lines",
     )
 )
 fig.add_trace(
     go.Scatter(
         x=hourly_summary.index,
-        y=hourly_summary["perc_75"],
+        y=hourly_summary["perc_90"],
         fill="tonexty",
         mode="lines",
     )
 )
 # Scheduled basals
-fig.add_trace(
-    go.Scatter(
-        x=basals_per_hour["time_label"],
-        y=basals_per_hour["scheduled"],
-        mode="markers",
-    )
-)
 fig.add_trace(
     go.Scatter(
         x=hourly_summary.index,
