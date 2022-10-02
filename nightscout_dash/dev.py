@@ -237,7 +237,7 @@ basals_per_hour["time_label"] = pd.to_datetime(
     start_datetime
     + (basals_per_hour.index - start_datetime) % datetime.timedelta(days=1)
 )
-basals_per_hour['date'] = basals_per_hour.index.date
+basals_per_hour["date"] = basals_per_hour.index.date
 #%%
 
 import plotly.io as pio
