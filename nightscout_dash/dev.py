@@ -220,24 +220,51 @@ all_basal_rates.set_index("datetime", drop=True, inplace=True)
 
 #%%
 
+# Sample in time domain instead of storing only change points
 basals_per_min = all_basal_rates.asfreq("min", method="ffill")
 basals_per_min = basals_per_min.loc[
     (basals_per_min.index >= start_datetime) & (basals_per_min.index <= end_datetime)
 ]
+basals_per_min["index"] = basals_per_min.index
 
+# Add in auto-boluses to basal rates
+auto_boluses = all_bg_data.loc[
+    (~pd.isna(all_bg_data["insulin"]))
+    & (all_bg_data["notes"] == "Automatic Bolus/Correction")
+][["datetime", "insulin"]]
+auto_boluses = pd.merge_asof(
+    left=auto_boluses, right=basals_per_min, left_on="datetime", right_index=True
+)
+for i, autobolus in auto_boluses.iterrows():
+    basals_per_min.loc[autobolus["index"], "absolute"] = (
+        basals_per_min.loc[autobolus["index"], "absolute"] + autobolus["insulin"]
+    )
+basals_per_min["is_adjusted"] = (
+    basals_per_min["absolute"] != basals_per_min["scheduled"]
+)
+
+# TODO: factor out
 basals_np = basals_per_min["absolute"].to_numpy(dtype=float)
 cum_basal = np.cumsum(basals_np)
 cum_basal[60:] = cum_basal[60:] - cum_basal[:-60]
 hourly_basals = cum_basal[59::60] / 60
 
+adjusted_np = basals_per_min["is_adjusted"].to_numpy(dtype=float)
+cum_adjusted = np.cumsum(adjusted_np)
+cum_adjusted[60:] = cum_adjusted[60:] - cum_adjusted[:-60]
+hourly_adjusted = cum_adjusted[59::60] > 0
+
 basals_per_hour = basals_per_min.iloc[30:-30:60]
 basals_per_hour["avg"] = hourly_basals
+basals_per_hour["is_adjusted"] = hourly_adjusted
 
 basals_per_hour["time_label"] = pd.to_datetime(
     start_datetime
     + (basals_per_hour.index - start_datetime) % datetime.timedelta(days=1)
 )
-basals_per_hour['date'] = basals_per_hour.index.date
+basals_per_hour["date"] = basals_per_hour.index.date
+
+
 #%%
 
 import plotly.io as pio

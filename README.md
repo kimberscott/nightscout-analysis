@@ -34,7 +34,7 @@ Ad hoc (for now) analyses of Nightscout data for personal use
 1. Install pre-commit so that basic formatting will be enforced upon committing to the repo:
 
    ```commandline
-   pre-commit install
+   pre-commit install -t pre-push
    ```
 
 1. Create a `.env` file in the project root with the contents:
