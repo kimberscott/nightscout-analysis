@@ -24,25 +24,44 @@ from demo import PROFILE_ENDPOINT
 
 
 def fetch_profile_data() -> pd.DataFrame:
+    """
+    Retrieves ALL profiles stored in Nightscout.
+
+    :return: Pandas DataFrame with one row per basal rate, and columns:
+       * name (name of the profile, not necessarily unique)
+       * profile_id (unique ID of profile)
+       * profile_start_datetime (when profile took effect)
+       * basal_start_time_seconds (time in seconds since midnight when THIS basal rate for this profile takes effect)
+       * units_per_hour_scheduled (basal rate)
+       Rows are sorted by profile_start_datetime, then basal_start_time_seconds.
+
+    """
     profile_list = requests.get(
         PROFILE_ENDPOINT, params={}, headers={"accept": "application/json"}
     ).json()
-
     basal_list = [
-        profile | basal
+        profile | basal_rates
         for profile in profile_list
-        for basal in profile["store"][profile["defaultProfile"]]["basal"]
+        for basal_rates in profile["store"][profile["defaultProfile"]]["basal"]
     ]
     basals = pd.DataFrame.from_records(basal_list)[
-        ["defaultProfile", "startDate", "time", "value", "timeAsSeconds", "_id"]
+        ["defaultProfile", "startDate", "value", "timeAsSeconds", "_id"]
     ]
-    basals.rename(columns={"defaultProfile": "name", "_id": "profile_id"}, inplace=True)
-
-    basals["startDate"] = pd.to_datetime(basals["startDate"], utc=True).dt.tz_convert(
-        tzlocal.get_localzone_name()
+    basals.rename(
+        columns={
+            "defaultProfile": "name",
+            "_id": "profile_id",
+            "startDate": "profile_start_datetime",
+            "timeAsSeconds": "basal_start_time_seconds",
+            "value": "units_per_hour_scheduled",
+        },
+        inplace=True,
     )
-
-    return basals.sort_values(by=["startDate", "timeAsSeconds"])
+    # Profile start times are in UTC; convert to timezone-aware datetimes in local timezone.
+    basals["profile_start_datetime"] = pd.to_datetime(
+        basals["profile_start_datetime"], utc=True
+    ).dt.tz_convert(tzlocal.get_localzone_name())
+    return basals.sort_values(by=["profile_start_datetime", "basal_start_time_seconds"])
 
 
 def get_scheduled_basal(profiles, timestamp):
@@ -51,13 +70,13 @@ def get_scheduled_basal(profiles, timestamp):
     # We assume the profiles are sorted by effective date, then time in seconds.
     timestamp = pd.to_datetime(timestamp)
     applicable_profile_rows = profiles.loc[
-        (profiles["startDate"] <= timestamp)
+        (profiles["profile_start_datetime"] <= timestamp)
         & (
-            profiles["timeAsSeconds"]
+            profiles["basal_start_time_seconds"]
             <= timestamp.hour * 3600 + timestamp.minute * 60 + timestamp.second
         )
     ]
-    return applicable_profile_rows.iloc[-1]["value"]
+    return applicable_profile_rows.iloc[-1]["units_per_hour_scheduled"]
 
 
 #%%
@@ -114,7 +133,9 @@ regularly_scheduled_at_expiration = pd.DataFrame(
 # Find all the times where the regularly-scheduled basal profile would *change* during this interval
 profiles["profile_number"] = profiles.groupby("profile_id").ngroup()
 profiles["next_profile_number"] = profiles["profile_number"] + 1
-profile_start_times = profiles[["profile_number", "startDate"]].drop_duplicates()
+profile_start_times = profiles[
+    ["profile_number", "profile_start_datetime"]
+].drop_duplicates()
 
 profiles = pd.merge(
     left=profiles,
@@ -129,11 +150,11 @@ profile_repeats = []
 for profile_num in profiles["profile_number"].unique():
     print(profile_num)
     this_profile = profiles.loc[profiles["profile_number"] == profile_num]
-    range_start = this_profile.iloc[0]["startDate"].date()
+    range_start = this_profile.iloc[0]["profile_start_datetime"].date()
     range_end = (
         end_date
         if pd.isna(this_profile.iloc[0]["profile_number_next"])
-        else this_profile.iloc[0]["startDate_next"].date()
+        else this_profile.iloc[0]["profile_start_datetime_next"].date()
     )
     date_range = pd.date_range(
         start=max([range_start, start_date]),
@@ -150,21 +171,25 @@ basal_change_times = pd.concat(profile_repeats)
 # Filter out rows from before the current profile actually took effect & after the next one did
 
 basal_change_times["datetime"] = (
-    basal_change_times["date"] + pd.to_timedelta(basal_change_times["time"] + ":00")
+    basal_change_times["date"]
+    + pd.to_timedelta(basal_change_times["basal_start_time_seconds"], unit="s")
 ).dt.tz_localize(
     tz=tzlocal.get_localzone_name(), ambiguous="NaT", nonexistent="shift_forward"
 )
 basal_change_times = basal_change_times.loc[
-    (basal_change_times["datetime"] >= basal_change_times["startDate"])
+    (basal_change_times["datetime"] >= basal_change_times["profile_start_datetime"])
     & (
-        (basal_change_times["datetime"] < basal_change_times["startDate_next"])
-        | pd.isnull(basal_change_times["startDate_next"])
+        (
+            basal_change_times["datetime"]
+            < basal_change_times["profile_start_datetime_next"]
+        )
+        | pd.isnull(basal_change_times["profile_start_datetime_next"])
     )
     & (basal_change_times["datetime"].dt.date <= end_date)
 ]
 # Also throw in a row any time the profile itself changed during the interval, and a row
 # at the end of the interval to make sure we sample all the way to the end
-profile_change_times = pd.Series(profiles["startDate"].unique())
+profile_change_times = pd.Series(profiles["profile_start_datetime"].unique())
 profile_change_times = profile_change_times.loc[
     (profile_change_times.dt.date >= start_date)
     & (profile_change_times.dt.date <= end_date)
@@ -177,11 +202,11 @@ profile_change_times = pd.concat(
 )
 basal_change_times = pd.concat(
     [
-        basal_change_times[["datetime", "value"]],
+        basal_change_times[["datetime", "units_per_hour_scheduled"]],
         pd.DataFrame(
             {
                 "datetime": profile_change_times,
-                "value": profile_change_times.apply(
+                "units_per_hour_scheduled": profile_change_times.apply(
                     lambda x: get_scheduled_basal(profiles, x)
                 ),
             }
@@ -200,8 +225,8 @@ basal_change_times = pd.merge_asof(
 )
 basal_change_times = basal_change_times.loc[
     ~(basal_change_times["datetime"] < basal_change_times["expiration"]),
-    ["datetime", "value"],
-].rename(columns={"value": "absolute"})
+    ["datetime", "units_per_hour_scheduled"],
+].rename(columns={"units_per_hour_scheduled": "absolute"})
 #%%
 all_basal_rates = pd.concat(
     [
@@ -299,6 +324,73 @@ fig = px.line(
     color="date",
     markers=True,
 )
+fig = px.line(
+    basals_per_hour,
+    x="time_label",
+    y="avg",
+    color="date",
+    markers=True,
+)
+fig.update_layout(
+    margin=dict(l=40, r=40, t=40, b=40),
+    height=400,
+    title="Basal rates",
+    xaxis_title="Time",
+    yaxis_title="u/hr",
+)
+
+fig.update_xaxes(
+    dtick=60 * 60 * 1000,
+    tickformat="%I%p",
+    ticklabelmode="period",
+    range=[
+        basals_per_hour["time_label"].min() - datetime.timedelta(minutes=5),
+        basals_per_hour["time_label"].max() + datetime.timedelta(minutes=5),
+    ],
+)
+fig.update_traces(line=dict(width=1))
+
+
+fig.add_trace(
+    go.Scatter(
+        x=hourly_summary.index,
+        y=hourly_summary["perc_10"],
+        mode="lines",
+    )
+)
+fig.add_trace(
+    go.Scatter(
+        x=hourly_summary.index,
+        y=hourly_summary["perc_90"],
+        fill="tonexty",
+        mode="lines",
+    )
+)
+# Scheduled basals
+fig.add_trace(
+    go.Scatter(
+        x=hourly_summary.index,
+        y=hourly_summary["perc_05_scheduled"],
+        mode="lines",
+    )
+)
+fig.add_trace(
+    go.Scatter(
+        x=hourly_summary.index,
+        y=hourly_summary["perc_95_scheduled"],
+        fill="tonexty",
+        mode="lines",
+    )
+)
+# Mean actual basal
+fig.add_trace(
+    go.Scatter(
+        x=hourly_summary.index,
+        y=hourly_summary["mean"],
+        mode="lines+markers",
+    )
+)
+fig.show()
 fig.update_layout(
     margin=dict(l=40, r=40, t=40, b=40),
     height=400,
