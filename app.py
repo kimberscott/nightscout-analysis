@@ -5,8 +5,6 @@ from dash import (
     callback,
 )
 import dash_bootstrap_components as dbc
-
-
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -16,6 +14,7 @@ from nightscout_dash.layout import ns_layout
 # TODO: create register_callbacks functions
 from nightscout_dash.update_data import load_nightscout_data
 import nightscout_dash.distribution_table
+import nightscout_dash.basal_rate_plot
 
 
 @callback(

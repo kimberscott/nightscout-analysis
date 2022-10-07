@@ -1,19 +1,19 @@
 import json
-
 import numpy as np
 import pandas as pd
 from dash import (
-    Dash,
     Input,
     Output,
     State,
     callback,
     no_update,
 )
-from demo import fetch_nightscout_data
-
-from datetime import date
 import datetime
+
+from nightscout_loader import (
+    fetch_nightscout_data,
+    fetch_profile_data,
+)
 
 
 @callback(
@@ -24,6 +24,7 @@ import datetime
             component_id="already-loaded-dates",
             component_property="data",
         ),
+        "profile_data": Output(component_id="profile-data", component_property="data"),
     },
     inputs={
         "submit_button": Input(
@@ -39,6 +40,10 @@ import datetime
             component_id="already-loaded-dates", component_property="data"
         ),
         "bg_data": State(component_id="all-bg-data", component_property="data"),
+        "profile_json": State(component_id="profile-data", component_property="data"),
+        "timezone_name": Input(
+            component_id="timezone-name", component_property="value"
+        ),
     },
 )
 def load_nightscout_data(
@@ -47,25 +52,31 @@ def load_nightscout_data(
     end_date_str,
     already_loaded_date_strs,
     bg_data,
+    profile_json,
+    timezone_name: str,
 ):
     # TODO: if start date or end date are None, gentle error
 
     # First find out what range of data we actually need to fetch from the server, if any
     requested_dates = pd.date_range(
-        start=date.fromisoformat(start_date_str),
-        end=date.fromisoformat(end_date_str),
+        start=datetime.date.fromisoformat(start_date_str),
+        end=datetime.date.fromisoformat(end_date_str),
     )
 
     # If we don't already have data loaded, just load this start-end date
     if already_loaded_date_strs is None:
+
         all_bg_data = fetch_nightscout_data(
-            date.fromisoformat(start_date_str),
-            date.fromisoformat(end_date_str) + datetime.timedelta(days=1),
+            datetime.date.fromisoformat(start_date_str),
+            datetime.date.fromisoformat(end_date_str) + datetime.timedelta(days=1),
+            local_timezone_name=timezone_name,
         )
         already_loaded_dates = requested_dates
-        updated_bg_data = all_bg_data.to_json(orient="split")
+        updated_bg_data = all_bg_data.to_json(orient="split", date_unit="ns")
+        profiles = fetch_profile_data(timezone_name)
     else:
         all_bg_data = pd.read_json(bg_data, orient="split")
+        profiles = pd.read_json(profile_json, orient="split")
         # Check what dates we have already
         already_loaded_dates = pd.read_json(already_loaded_date_strs, typ="series")
         # See which requested dates are new
@@ -96,7 +107,7 @@ def load_nightscout_data(
                     )
                 )
             all_bg_data = pd.concat(new_bg_dataframes)
-            updated_bg_data = all_bg_data.to_json(orient="split")
+            updated_bg_data = all_bg_data.to_json(orient="split", date_unit="ns")
 
             already_loaded_dates = pd.concat(
                 [already_loaded_dates, pd.Series(new_dates)]
@@ -106,14 +117,15 @@ def load_nightscout_data(
 
     all_bg_data["date"] = pd.to_datetime(all_bg_data["date"]).dt.date
     subset_data = all_bg_data[
-        (all_bg_data["date"] >= date.fromisoformat(start_date_str))
-        & (all_bg_data["date"] <= date.fromisoformat(end_date_str))
+        (all_bg_data["date"] >= datetime.date.fromisoformat(start_date_str))
+        & (all_bg_data["date"] <= datetime.date.fromisoformat(end_date_str))
     ]
 
     return {
         "bg_data": updated_bg_data,
-        "subset_data": subset_data.to_json(orient="split"),
+        "subset_data": subset_data.to_json(orient="split", date_unit="ns"),
         "already_loaded_date_strs": json.dumps(
             already_loaded_dates.astype("string").to_list()
         ),
+        "profile_data": profiles.to_json(orient="split", date_unit="ns"),
     }

@@ -43,6 +43,7 @@ distribution_table_column_contents = [
             }
         ).to_dict(orient="records"),
     ),
+    html.Br(),
     dbc.Button(
         "Add row",
         id="add-row-button",
@@ -68,6 +69,7 @@ distribution_table_column_contents = [
 )
 def update_table(bg_data, table_data, table_update, row_button_clicks, columns):
 
+    # TODO: need specific load function for json-> dataframe for times
     bg_data = pd.read_json(bg_data, orient="split")
     bg = bg_data.loc[bg_data["eventType"] == "sgv", "bg"]
     n_records = len(bg)
