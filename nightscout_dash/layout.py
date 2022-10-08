@@ -16,6 +16,21 @@ form = dbc.Row(
             [
                 dbc.InputGroup(
                     [
+                        dbc.InputGroupText("Time zone"),
+                        dbc.Select(
+                            id="timezone-name",
+                            options=[
+                                {"label": zone_name, "value": zone_name}
+                                for zone_name in zoneinfo.available_timezones()
+                            ],
+                            value=tzlocal.get_localzone_name(),
+                        ),
+                    ],
+                    className="mb-6",
+                ),
+                html.Br(),
+                dbc.InputGroup(
+                    [
                         dbc.InputGroupText("Date range"),
                         dcc.DatePickerRange(
                             id="data-date-range",
@@ -32,14 +47,10 @@ form = dbc.Row(
                 html.Br(),
                 dbc.InputGroup(
                     [
-                        dbc.InputGroupText("Time zone"),
-                        dbc.Select(
-                            id="timezone-name",
-                            options=[
-                                {"label": zone_name, "value": zone_name}
-                                for zone_name in zoneinfo.available_timezones()
-                            ],
-                            value=tzlocal.get_localzone_name(),
+                        dbc.InputGroupText("Nightscout URL"),
+                        dcc.Input(
+                            id="nightscout-url",
+                            value="",
                         ),
                     ],
                     className="mb-6",
@@ -74,15 +85,13 @@ form = dbc.Row(
 ns_layout = html.Div(
     children=[
         html.H1(children="Nightscout data analysis"),
-        html.Div(
-            children="""Overall documentation could go here.""",
-        ),
         form,
         dbc.Row(
             [
                 html.H2(
-                    id="subset-data-header"
-                ),  # TODO: add general header indicating everything else is subset-only
+                    id="subset-data-header",
+                    style={"text-align": "center"},
+                ),
             ]
         ),
         dbc.Row(
@@ -108,6 +117,7 @@ ns_layout = html.Div(
                 ),
                 dbc.Col(
                     [
+                        html.H3(children="Basal rates"),
                         dcc.Graph(
                             id="basal-rate-graph",
                         ),

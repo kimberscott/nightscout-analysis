@@ -5,7 +5,7 @@ import pandas as pd
 
 
 distribution_table_column_contents = [
-    html.H2(children="CGM distribution summary"),
+    html.H3(children="CGM distribution summary"),
     html.Div(id="distribution-summary-text", children=""),
     dash_table.DataTable(
         id="distribution-summary-table",

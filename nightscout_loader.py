@@ -374,6 +374,8 @@ def get_basal_per_hour(
     auto_boluses = all_bg_data.loc[
         (~pd.isna(all_bg_data["insulin"]))
         & (all_bg_data["notes"] == "Automatic Bolus/Correction")
+        & (all_bg_data["datetime"] <= end_datetime)
+        & (all_bg_data["datetime"] >= start_datetime)
     ][["datetime", "insulin"]]
     auto_boluses = pd.merge_asof(
         left=auto_boluses, right=basals_per_min, left_on="datetime", right_index=True

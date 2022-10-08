@@ -156,7 +156,7 @@ def update_figure(
     fig.update_layout(
         margin=dict(l=40, r=40, t=40, b=40),
         height=400,
-        title="Basal rates",
+        # title="Basal rates",
         xaxis_title="Time of day",
         yaxis_title="u/hr",
         legend_title="Summary",
