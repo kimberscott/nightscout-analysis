@@ -225,6 +225,7 @@ def get_basal_per_hour(
     temp_basal_rates["expiration"] = temp_basal_rates["datetime"] + temp_basal_rates[
         "duration"
     ].apply(lambda x: datetime.timedelta(minutes=x))
+
     # Find the cases where the expiration is before the next entry, and insert profile values at the expiration time
     temp_basal_expirations = [start_datetime]
     if len(temp_basal_rates):
@@ -336,28 +337,34 @@ def get_basal_per_hour(
     ).sort_values(["datetime"])
     # Merge with temp basals to check for any cases where the temp basal would supercede the change. (Note we've already
     # covered the case where the temp basal expires and reverts back to the regularly-scheduled basal.)
-    basal_change_times = pd.merge_asof(
+    basal_change_times_outside_of_temps = pd.merge_asof(
         left=basal_change_times,
         right=temp_basal_rates,
         left_on="datetime",
         right_on="datetime",
     )
-    basal_change_times = basal_change_times.loc[
-        ~(basal_change_times["datetime"] < basal_change_times["expiration"]),
+    basal_change_times_outside_of_temps = basal_change_times_outside_of_temps.loc[
+        ~(
+            basal_change_times_outside_of_temps["datetime"]
+            < basal_change_times_outside_of_temps["expiration"]
+        ),
         ["datetime", "units_per_hour_scheduled"],
     ].rename(columns={"units_per_hour_scheduled": "absolute"})
 
     all_basal_rates = pd.concat(
         [
-            basal_change_times,
+            basal_change_times_outside_of_temps,
             temp_basal_rates,
             regularly_scheduled_at_expiration,
         ]
     )[["datetime", "absolute"]].sort_values(by="datetime")
+    all_basal_rates = pd.merge_asof(
+        left=all_basal_rates,
+        right=basal_change_times,
+        left_on="datetime",
+        right_on="datetime",
+    ).rename(columns={"units_per_hour_scheduled": "scheduled"})
 
-    all_basal_rates["scheduled"] = list(
-        all_basal_rates["datetime"].apply(lambda x: get_scheduled_basal(profiles, x))
-    )
     # Make sure to drop duplicates while datetime is still part of the row!
     all_basal_rates.drop_duplicates(subset=["datetime"], inplace=True)
     all_basal_rates.set_index("datetime", drop=True, inplace=True)
@@ -369,7 +376,6 @@ def get_basal_per_hour(
         & (basals_per_min.index <= end_datetime)
     ]
     basals_per_min["index"] = basals_per_min.index
-
     # Add in auto-boluses to basal rates
     auto_boluses = all_bg_data.loc[
         (~pd.isna(all_bg_data["insulin"]))
@@ -380,10 +386,10 @@ def get_basal_per_hour(
     auto_boluses = pd.merge_asof(
         left=auto_boluses, right=basals_per_min, left_on="datetime", right_index=True
     )
-    for i, autobolus in auto_boluses.iterrows():
-        basals_per_min.loc[autobolus["index"], "absolute"] = (
-            basals_per_min.loc[autobolus["index"], "absolute"] + autobolus["insulin"]
-        )
+    basals_per_min.loc[auto_boluses["index"], "absolute"] = (
+        basals_per_min.loc[auto_boluses["index"], "absolute"].values
+        + auto_boluses["insulin"].values
+    )
     basals_per_min["is_adjusted"] = (
         basals_per_min["absolute"] != basals_per_min["scheduled"]
     )
@@ -408,7 +414,7 @@ def get_basal_per_hour(
 
     basals_per_hour = basals_per_hour.assign(
         avg_basal=get_windowed_series(basals_per_min["absolute"], 60),
-        is_adjusted=(get_windowed_series(basals_per_min["is_adjusted"], 60) > 0),
+        is_adjusted=get_windowed_series(basals_per_min["absolute"], 60) > 0,
         time_label=pd.to_datetime(
             start_datetime
             + (basals_per_hour.index - start_datetime) % datetime.timedelta(days=1)

@@ -72,8 +72,10 @@ form = dbc.Row(
         ),
         dbc.Col(
             [
-                dcc.Graph(
-                    id="loaded-data-graph",
+                dbc.Spinner(
+                    dcc.Graph(
+                        id="loaded-data-graph",
+                    )
                 ),
             ],
             width=5,
@@ -97,7 +99,7 @@ ns_layout = html.Div(
         dbc.Row(
             [
                 dbc.Col(
-                    distribution_table_column_contents,
+                    dbc.Spinner(distribution_table_column_contents),
                     width=6,
                 ),
                 dbc.Col(
@@ -118,8 +120,15 @@ ns_layout = html.Div(
                 dbc.Col(
                     [
                         html.H3(children="Basal rates"),
-                        dcc.Graph(
-                            id="basal-rate-graph",
+                        dbc.Switch(
+                            id="basal-rate-includes-scheduled",
+                            label="Include regularly-scheduled basals (when Control IQ was not active or we don't have data)",
+                            value=False,
+                        ),
+                        dbc.Spinner(
+                            dcc.Graph(
+                                id="basal-rate-graph",
+                            )
                         ),
                     ],
                     width=6,

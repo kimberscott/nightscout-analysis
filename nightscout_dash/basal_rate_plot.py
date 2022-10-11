@@ -29,10 +29,18 @@ from nightscout_loader import (
         "timezone_name": Input(
             component_id="timezone-name", component_property="value"
         ),
+        "basal_rate_includes_scheduled": Input(
+            component_id="basal-rate-includes-scheduled", component_property="value"
+        ),
     },
 )
 def update_figure(
-    bg_json, profile_json, start_date_str, end_date_str, timezone_name: str
+    bg_json,
+    profile_json,
+    start_date_str,
+    end_date_str,
+    timezone_name: str,
+    basal_rate_includes_scheduled,
 ):
 
     all_bg_data = pd.read_json(bg_json, orient="split")
@@ -51,6 +59,8 @@ def update_figure(
     basals_per_hour = get_basal_per_hour(
         all_bg_data, profiles, start_date, end_date, timezone_name
     )
+    if not basal_rate_includes_scheduled:
+        basals_per_hour = basals_per_hour.loc[basals_per_hour["is_adjusted"] == True]
     hourly_grouped = basals_per_hour[["time_label", "scheduled", "avg_basal"]].groupby(
         "time_label"
     )
@@ -79,7 +89,7 @@ def update_figure(
                 line_color=color,
                 legendgroup=legend_group,
                 showlegend=False,
-                **trace_params
+                **trace_params,
             )
         )
         fig.add_trace(
@@ -91,7 +101,7 @@ def update_figure(
                 fillcolor=color,
                 legendgroup=legend_group,
                 name=legend_text,
-                **trace_params
+                **trace_params,
             )
         )
 
