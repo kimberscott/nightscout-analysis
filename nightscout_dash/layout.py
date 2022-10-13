@@ -14,6 +14,7 @@ form = dbc.Row(
     [
         dbc.Col(
             [
+                html.H2(children="Select data"),
                 dbc.InputGroup(
                     [
                         dbc.InputGroupText("Time zone"),
@@ -26,9 +27,8 @@ form = dbc.Row(
                             value=tzlocal.get_localzone_name(),
                         ),
                     ],
-                    className="mb-6",
+                    className="mb-2",
                 ),
-                html.Br(),
                 dbc.InputGroup(
                     [
                         dbc.InputGroupText("Date range"),
@@ -42,18 +42,19 @@ form = dbc.Row(
                             className="form-control",
                         ),
                     ],
-                    className="mb-6",
+                    className="mb-2",
                 ),
-                html.Br(),
                 dbc.InputGroup(
                     [
                         dbc.InputGroupText("Nightscout URL"),
                         dcc.Input(
                             id="nightscout-url",
-                            value="",
+                            type="text",
+                            placeholder="Not yet implemented - using value in .env file",
+                            className="form-control",
                         ),
                     ],
-                    className="mb-6",
+                    className="mb-2",
                 ),
             ],
             width=5,
@@ -69,12 +70,14 @@ form = dbc.Row(
                 ),
             ],
             width=1,
+            class_name="align-self-end",
         ),
         dbc.Col(
             [
                 dbc.Spinner(
                     dcc.Graph(
                         id="loaded-data-graph",
+                        style={"height": "300px"},
                     )
                 ),
             ],
@@ -87,7 +90,32 @@ form = dbc.Row(
 ns_layout = html.Div(
     children=[
         html.H1(children="Nightscout data analysis"),
+        html.H2(children="About"),
+        dbc.Row(
+            [
+                dbc.Col(
+                    html.Div(
+                        children="""This Dash app displays custom plots to help understand Nightscout data about blood sugar and treatments. It is currently a skeleton with ongoing work on expanding plot types. Coming soon: blood sugar as a function of time since site change; plots of the number of distinct lows over time; BG percentiles by day; annotations showing profile change timing."""
+                    ),
+                    width=4,
+                ),
+                dbc.Col(
+                    html.Div(
+                        children="""Data is loaded via the Nightscout API, not directly from the MongoDB. When data for a given range is loaded, it is then stored so that if the range is changed only data not previously requested is loaded."""
+                    ),
+                    width=4,
+                ),
+                dbc.Col(
+                    html.Div(
+                        children="""The next priority is to implement a simple tool for easily adding annotations - e.g. 'forgot to dose' or 'probably underestimated carbs' or 'pressure low' - as well as special event types like 'exclude this range' to more flexibly focus on 'good' data in analysis."""
+                    ),
+                    width=4,
+                ),
+            ]
+        ),
+        html.Br(),
         form,
+        html.Br(),
         dbc.Row(
             [
                 html.H2(
@@ -106,6 +134,11 @@ ns_layout = html.Div(
                     [
                         dcc.Graph(
                             id="percentile-by-day-graph",
+                            figure={
+                                "layout": {
+                                    "title": "Placeholder: stacked area plot of time per day in each of the ranges defined in the table to the left."
+                                }
+                            },
                         ),
                     ],
                     width=6,

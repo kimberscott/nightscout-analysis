@@ -58,9 +58,9 @@ def update_graph(bg_data):
             ),
         )
     figure.update_layout(
-        margin=dict(l=40, r=40, t=40, b=40),
-        height=200,
-        title="All loaded data",
+        margin=dict(l=40, r=40, t=80, b=40),
+        height=240,
+        title="All loaded data<br><sub>To confirm availability of data (not intended for direct use in analysis)</sub>",
         xaxis_title="Date",
         yaxis_title="mg/dL",
     )
