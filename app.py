@@ -11,7 +11,7 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
 
-from nightscout_dash.layout import ns_layout
+from nightscout_dash.layout import generate_ns_layout
 
 import flask
 
@@ -87,10 +87,11 @@ def update_graph(bg_data):
 )
 def update_header(submit_button, start_date_str, end_date_str):
 
-    import urllib.parse
+    # TODO: store info in URL query params
+    # import urllib.parse
 
-    parsed_url = urllib.parse.urlparse(flask.request.referrer)
-    parsed_query = urllib.parse.parse_qs(parsed_url.query)
+    # parsed_url = urllib.parse.urlparse(flask.request.referrer)
+    # parsed_query = urllib.parse.parse_qs(parsed_url.query)
 
     start_date = datetime.date.fromisoformat(start_date_str)
     end_date = datetime.date.fromisoformat(end_date_str)
@@ -115,6 +116,6 @@ if __name__ == "__main__":
         __name__,
         external_stylesheets=[dbc.themes.BOOTSTRAP],
     )
-    app.layout = ns_layout
+    app.layout = generate_ns_layout
     app.title = "Nightscout analysis"
     app.run_server(debug=True)

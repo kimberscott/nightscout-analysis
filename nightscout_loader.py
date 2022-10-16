@@ -1,16 +1,21 @@
 import numpy as np
 import requests
-from dotenv import load_dotenv
-import os
+
 import pandas as pd
 import datetime
+from urllib.parse import urljoin
 
-load_dotenv()
 
-NIGHTSCOUT_URL = os.getenv("NIGHTSCOUT_URL")
-ENTRIES_ENDPOINT = NIGHTSCOUT_URL + "entries.json"
-TREATMENTS_ENDPOINT = NIGHTSCOUT_URL + "treatments.json"
-PROFILE_ENDPOINT = NIGHTSCOUT_URL + "profile.json"
+def get_entries_endpoint(nightscout_url):
+    return urljoin(nightscout_url, "api/v1/entries.json")
+
+
+def get_treatments_endpoint(nightscout_url):
+    return urljoin(nightscout_url, "api/v1/treatments.json")
+
+
+def get_profile_endpoint(nightscout_url):
+    return urljoin(nightscout_url, "api/v1/profile.json")
 
 
 def add_time_identifiers(df: pd.DataFrame, datetime_col_name: str) -> None:
@@ -32,6 +37,7 @@ def add_time_identifiers(df: pd.DataFrame, datetime_col_name: str) -> None:
 
 
 def fetch_nightscout_data(
+    nightscout_url: str,
     start_date: datetime.datetime = None,
     end_date: datetime.datetime = None,
     local_timezone_name: str = "UTC",
@@ -54,7 +60,9 @@ def fetch_nightscout_data(
     }
     bg_params["count"] = 12 * 24 * days_in_range
     bg_list = requests.get(
-        ENTRIES_ENDPOINT, params=bg_params, headers={"accept": "application/json"}
+        get_entries_endpoint(nightscout_url),
+        params=bg_params,
+        headers={"accept": "application/json"},
     ).json()
     bg = pd.DataFrame.from_records(bg_list)
     bg["datetime"] = pd.to_datetime(bg["date"], unit="ms", utc=True).dt.tz_convert(
@@ -81,7 +89,7 @@ def fetch_nightscout_data(
     }
     treatment_params["count"] = 300 * days_in_range
     treatments_list = requests.get(
-        TREATMENTS_ENDPOINT,
+        get_treatments_endpoint(nightscout_url),
         params=treatment_params,
         headers={"accept": "application/json"},
     ).json()
@@ -120,9 +128,12 @@ def fetch_nightscout_data(
     return all_data
 
 
-def fetch_profile_data(local_timezone_name) -> pd.DataFrame:
+def fetch_profile_data(nightscout_url: str, local_timezone_name: str) -> pd.DataFrame:
     """
     Retrieves ALL profiles stored in Nightscout.
+
+    :param nightscout_url: Base URL of Nightscout site
+    :param local_timezone_name: Timezone name e.g. 'America/New_York'
 
     :return: Pandas DataFrame with one row per basal rate, and columns:
        * name (name of the profile, not necessarily unique)
@@ -134,7 +145,9 @@ def fetch_profile_data(local_timezone_name) -> pd.DataFrame:
 
     """
     profile_list = requests.get(
-        PROFILE_ENDPOINT, params={}, headers={"accept": "application/json"}
+        get_profile_endpoint(nightscout_url),
+        params={},
+        headers={"accept": "application/json"},
     ).json()
     basal_list = [
         profile | basal_rates

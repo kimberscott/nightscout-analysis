@@ -1,4 +1,6 @@
 import json
+import requests.exceptions
+
 import numpy as np
 import pandas as pd
 from dash import (
@@ -25,6 +27,13 @@ from nightscout_loader import (
             component_property="data",
         ),
         "profile_data": Output(component_id="profile-data", component_property="data"),
+        "loaded_nightscout_url": Output(
+            component_id="loaded-nightscout-url", component_property="data"
+        ),
+        "nightscout_error_open": Output(
+            component_id="nightscout-error",
+            component_property="is_open",
+        ),
     },
     inputs={
         "submit_button": Input(
@@ -41,8 +50,14 @@ from nightscout_loader import (
         ),
         "bg_data": State(component_id="all-bg-data", component_property="data"),
         "profile_json": State(component_id="profile-data", component_property="data"),
-        "timezone_name": Input(
+        "timezone_name": State(
             component_id="timezone-name", component_property="value"
+        ),
+        "nightscout_url": State(
+            component_id="nightscout-url", component_property="value"
+        ),
+        "loaded_nightscout_url": State(
+            component_id="loaded-nightscout-url", component_property="data"
         ),
     },
 )
@@ -54,8 +69,15 @@ def load_nightscout_data(
     bg_data,
     profile_json,
     timezone_name: str,
+    nightscout_url: str,
+    loaded_nightscout_url: str,
 ):
     # TODO: if start date or end date are None, gentle error
+
+    # Standardize format of nightscout_url for storage, so we don't treat it as an actual change if a trailing slash
+    # is added/removed
+    while nightscout_url and nightscout_url[-1] == "/":
+        nightscout_url = nightscout_url[:-1]
 
     # First find out what range of data we actually need to fetch from the server, if any
     requested_dates = pd.date_range(
@@ -64,16 +86,28 @@ def load_nightscout_data(
     )
 
     # If we don't already have data loaded, just load this start-end date
-    if already_loaded_date_strs is None:
+    if (already_loaded_date_strs is None) or (loaded_nightscout_url != nightscout_url):
 
-        all_bg_data = fetch_nightscout_data(
-            datetime.date.fromisoformat(start_date_str),
-            datetime.date.fromisoformat(end_date_str) + datetime.timedelta(days=1),
-            local_timezone_name=timezone_name,
-        )
+        try:
+            all_bg_data = fetch_nightscout_data(
+                nightscout_url,
+                datetime.date.fromisoformat(start_date_str),
+                datetime.date.fromisoformat(end_date_str) + datetime.timedelta(days=1),
+                local_timezone_name=timezone_name,
+            )
+            profiles = fetch_profile_data(nightscout_url, timezone_name)
+        except requests.exceptions.JSONDecodeError:
+            return {
+                "bg_data": no_update,
+                "subset_data": no_update,
+                "already_loaded_date_strs": no_update,
+                "profile_data": no_update,
+                "loaded_nightscout_url": no_update,
+                "nightscout_error_open": True,
+            }
         already_loaded_dates = requested_dates
         updated_bg_data = all_bg_data.to_json(orient="split", date_unit="ns")
-        profiles = fetch_profile_data(timezone_name)
+
     else:
         all_bg_data = pd.read_json(bg_data, orient="split")
         profiles = pd.read_json(profile_json, orient="split")
@@ -99,13 +133,23 @@ def load_nightscout_data(
             )
 
             new_bg_dataframes = [all_bg_data]
-            for (i_start, i_end) in zip(segment_start_indices, segment_end_indices):
-                new_bg_dataframes.append(
-                    fetch_nightscout_data(
-                        new_dates[i_start],
-                        new_dates[i_end] + datetime.timedelta(days=1),
+            try:
+                for (i_start, i_end) in zip(segment_start_indices, segment_end_indices):
+                    new_bg_dataframes.append(
+                        fetch_nightscout_data(
+                            new_dates[i_start],
+                            new_dates[i_end] + datetime.timedelta(days=1),
+                        )
                     )
-                )
+            except requests.exceptions.JSONDecodeError:
+                return {
+                    "bg_data": no_update,
+                    "subset_data": no_update,
+                    "already_loaded_date_strs": no_update,
+                    "profile_data": no_update,
+                    "loaded_nightscout_url": no_update,
+                    "nightscout_error_open": True,
+                }
             all_bg_data = pd.concat(new_bg_dataframes)
             updated_bg_data = all_bg_data.to_json(orient="split", date_unit="ns")
 
@@ -128,4 +172,6 @@ def load_nightscout_data(
             already_loaded_dates.astype("string").to_list()
         ),
         "profile_data": profiles.to_json(orient="split", date_unit="ns"),
+        "loaded_nightscout_url": nightscout_url,
+        "nightscout_error_open": False,
     }
