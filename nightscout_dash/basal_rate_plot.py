@@ -180,12 +180,14 @@ def update_figure(
             basals_per_hour["time_label"].max() + datetime.timedelta(minutes=5),
         ],
     )
-    fig.update_yaxes(
-        range=[
-            -0.05,
-            math.ceil(basals_per_hour["avg_basal"].max() * 2) / 2.0,
-        ],
-    )
+
+    if not pd.isna(basals_per_hour["avg_basal"].max()):
+        fig.update_yaxes(
+            range=[
+                -0.05,
+                math.ceil(basals_per_hour["avg_basal"].max() * 2) / 2.0,
+            ],
+        )
 
     return {
         "graph": fig,
