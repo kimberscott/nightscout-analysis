@@ -116,6 +116,7 @@ if __name__ == "__main__":
         __name__,
         external_stylesheets=[dbc.themes.BOOTSTRAP],
     )
+    server = app.server
     app.layout = generate_ns_layout
     app.title = "Nightscout analysis"
     app.run_server(debug=True)
