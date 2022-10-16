@@ -111,12 +111,13 @@ def update_header(submit_button, start_date_str, end_date_str):
     }
 
 
+app = Dash(
+    __name__,
+    external_stylesheets=[dbc.themes.BOOTSTRAP],
+)
+server = app.server  # used for Heroku deployment
+app.layout = generate_ns_layout
+app.title = "Nightscout analysis"
+
 if __name__ == "__main__":
-    app = Dash(
-        __name__,
-        external_stylesheets=[dbc.themes.BOOTSTRAP],
-    )
-    server = app.server
-    app.layout = generate_ns_layout
-    app.title = "Nightscout analysis"
     app.run_server(debug=True)

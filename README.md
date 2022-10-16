@@ -48,3 +48,9 @@ Ad hoc (for now) analyses of Nightscout data for personal use
    ```commandline
    (mmenv) $ python demo.py
    ```
+
+## Heroku deployment notes
+
+* This app is currently deployed via Heroku at https://nightscout-analysis.herokuapp.com/. It would be easy to set up review apps (automatic deployment of PR branches) if helpful in the future.
+* Keep the `runtime.txt` and `.python-version` synced; `runtime.txt` is used by Heroku to determine the appropriate Python version.
+* Heroku uses the `Procfile` which refers to `server` as defined in `app.py`.
