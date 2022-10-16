@@ -27,7 +27,14 @@ def generate_ns_layout():
                                     {"label": zone_name, "value": zone_name}
                                     for zone_name in zoneinfo.available_timezones()
                                 ],
-                                value=tzlocal.get_localzone_name(),
+                                value=os.getenv(
+                                    "LOCALZONE_NAME",
+                                    default=tzlocal.get_localzone_name(),
+                                ),
+                            ),
+                            dbc.Tooltip(
+                                "Set a LOCALZONE_NAME environment variable to control the default value.",
+                                target="timezone-name",
                             ),
                         ],
                         className="mb-2",
