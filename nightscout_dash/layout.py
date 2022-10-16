@@ -13,129 +13,132 @@ load_dotenv()
 
 def generate_ns_layout():
 
-    form = dbc.Row(
-        [
-            dbc.Col(
-                [
-                    html.H2(children="Select data"),
-                    dbc.InputGroup(
-                        [
-                            dbc.InputGroupText("Time zone"),
-                            dbc.Select(
-                                id="timezone-name",
-                                options=[
-                                    {"label": zone_name, "value": zone_name}
-                                    for zone_name in zoneinfo.available_timezones()
-                                ],
-                                value=os.getenv(
-                                    "LOCALZONE_NAME",
-                                    default=tzlocal.get_localzone_name(),
-                                ),
-                            ),
-                            dbc.Tooltip(
-                                "Set a LOCALZONE_NAME environment variable to control the default value.",
-                                target="timezone-name",
-                            ),
-                        ],
-                        className="mb-2",
+    default_spacing_class = "mb-3"
+
+    select_and_check = [
+        html.H2(children="Select data"),
+        dbc.InputGroup(
+            [
+                dbc.InputGroupText("Time zone"),
+                dbc.Select(
+                    id="timezone-name",
+                    options=[
+                        {"label": zone_name, "value": zone_name}
+                        for zone_name in zoneinfo.available_timezones()
+                    ],
+                    value=os.getenv(
+                        "LOCALZONE_NAME",
+                        default=tzlocal.get_localzone_name(),
                     ),
-                    dbc.InputGroup(
-                        [
-                            dbc.InputGroupText("Date range"),
-                            dcc.DatePickerRange(
-                                id="data-date-range",
-                                max_date_allowed=datetime.date.today(),
-                                end_date=datetime.date.today(),
-                                start_date=datetime.date.today()
-                                - datetime.timedelta(days=7),
-                                className="form-control",
-                            ),
-                        ],
-                        className="mb-2",
-                    ),
-                    dbc.InputGroup(
-                        [
-                            dbc.InputGroupText("Nightscout URL"),
-                            dcc.Input(
-                                id="nightscout-url",
-                                type="text",
-                                value=os.getenv("NIGHTSCOUT_URL"),
-                                className="form-control",
-                            ),
-                        ],
-                        className="mb-2",
-                        id="nightscout-url-input-group",
-                    ),
-                    dbc.Alert(
-                        children="Error loading data from Nightscout",
-                        color="danger",
-                        id="nightscout-error",
-                        is_open=False,
-                    ),
-                    dbc.Tooltip(
-                        "Set a NIGHTSCOUT_URL environment variable to control the default value.",
-                        target="nightscout-url-input-group",
-                    ),
-                ],
-                width=5,
-            ),
-            dbc.Col(
-                [
-                    dbc.Button(
-                        "Submit",
-                        outline=True,
-                        color="primary",
-                        className="me-1",
-                        id="submit-button",
-                    ),
-                ],
-                width=1,
-                class_name="align-self-end",
-            ),
-            dbc.Col(
-                [
-                    dbc.Spinner(
-                        dcc.Graph(
-                            id="loaded-data-graph",
-                            style={"height": "300px"},
-                        )
-                    ),
-                ],
-                width=5,
-            ),
-        ],
-        className="g-3",
-    )
+                ),
+                dbc.Tooltip(
+                    "Set a LOCALZONE_NAME environment variable to control the default value.",
+                    target="timezone-name",
+                ),
+            ],
+            className="mb-2",
+        ),
+        dbc.InputGroup(
+            [
+                dbc.InputGroupText("Date range"),
+                dcc.DatePickerRange(
+                    id="data-date-range",
+                    max_date_allowed=datetime.date.today(),
+                    end_date=datetime.date.today(),
+                    start_date=datetime.date.today() - datetime.timedelta(days=7),
+                    className="form-control",
+                ),
+            ],
+            className="mb-2",
+        ),
+        dbc.InputGroup(
+            [
+                dbc.InputGroupText("Nightscout URL"),
+                dcc.Input(
+                    id="nightscout-url",
+                    type="text",
+                    value=os.getenv("NIGHTSCOUT_URL"),
+                    className="form-control",
+                ),
+            ],
+            className="mb-2",
+            id="nightscout-url-input-group",
+        ),
+        dbc.Alert(
+            children="Error loading data from Nightscout",
+            color="danger",
+            id="nightscout-error",
+            is_open=False,
+        ),
+        dbc.Tooltip(
+            "Set a NIGHTSCOUT_URL environment variable to control the default value.",
+            target="nightscout-url-input-group",
+        ),
+        dbc.Row(
+            [
+                dbc.Button(
+                    "Submit",
+                    outline=True,
+                    color="primary",
+                    className="ms-auto w-auto",
+                    id="submit-button",
+                ),
+            ]
+        ),
+        dbc.Spinner(
+            dcc.Graph(
+                id="loaded-data-graph",
+                style={"height": "300px"},
+            )
+        ),
+    ]
 
     ns_layout = html.Div(
         children=[
-            html.H1(children="Nightscout data analysis"),
-            html.H2(children="About"),
+            html.H1(
+                children="Nightscout data analysis", className=default_spacing_class
+            ),
             dbc.Row(
                 [
                     dbc.Col(
-                        html.Div(
-                            children="""This Dash app displays custom plots to help understand Nightscout data about blood sugar and treatments. It is currently a skeleton with ongoing work on expanding plot types. Coming soon: blood sugar as a function of time since site change; plots of the number of distinct lows over time; BG percentiles by day; annotations showing profile change timing."""
-                        ),
-                        width=4,
+                        select_and_check,
+                        width=5,
+                        xs={"width": 6, "offset": 0},
+                        lg={"width": 5, "offset": 0},
+                        class_name="text-right",
                     ),
                     dbc.Col(
-                        html.Div(
-                            children="""Data is loaded via the Nightscout API, not directly from the MongoDB. When data for a given range is loaded, it is then stored so that if the range is changed only data not previously requested is loaded."""
-                        ),
-                        width=4,
+                        [
+                            html.H2(children="About"),
+                            html.Div(
+                                children="This Dash app displays custom plots to help understand Nightscout data about "
+                                "blood sugar and treatments. It is currently a skeleton with ongoing work on "
+                                "expanding plot types. Coming soon: blood sugar as a function of time since "
+                                "site change; plots of the number of distinct lows over time; BG percentiles "
+                                "by day; annotations showing profile change timing.",
+                                className=default_spacing_class,
+                            ),
+                            html.Div(
+                                children="Data is loaded via the Nightscout API, not directly from the MongoDB. When "
+                                "data for a given range is loaded, it is then stored so that if the range is "
+                                "changed only data not previously requested is loaded.",
+                                className=default_spacing_class,
+                            ),
+                            html.Div(
+                                children="The next priority is to implement a simple tool for easily adding "
+                                "annotations - e.g. 'forgot to dose' or 'probably underestimated carbs' or "
+                                "'pressure low' - as well as special event types like 'exclude this range' "
+                                "to more flexibly focus on 'good' data in analysis.",
+                                className=default_spacing_class,
+                            ),
+                        ],
+                        width=3,
+                        xs={"width": 5, "offset": 0},
+                        lg={"width": 3, "offset": 3},
                     ),
-                    dbc.Col(
-                        html.Div(
-                            children="""The next priority is to implement a simple tool for easily adding annotations - e.g. 'forgot to dose' or 'probably underestimated carbs' or 'pressure low' - as well as special event types like 'exclude this range' to more flexibly focus on 'good' data in analysis."""
-                        ),
-                        width=4,
-                    ),
-                ]
+                ],
+                class_name=default_spacing_class,
             ),
-            html.Br(),
-            form,
-            html.Br(),
             dbc.Row(
                 [
                     html.H2(
