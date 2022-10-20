@@ -21,6 +21,7 @@ import flask
 from nightscout_dash.update_data import load_nightscout_data
 import nightscout_dash.distribution_table
 import nightscout_dash.basal_rate_plot
+import nightscout_dash.site_change_plot
 
 
 @callback(

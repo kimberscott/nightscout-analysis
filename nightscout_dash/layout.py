@@ -111,11 +111,20 @@ def generate_ns_layout():
                         [
                             html.H2(children="About"),
                             html.Div(
-                                children="This Dash app displays custom plots to help understand Nightscout data about "
-                                "blood sugar and treatments. It is currently a skeleton with ongoing work on "
-                                "expanding plot types. Coming soon: blood sugar as a function of time since "
-                                "site change; plots of the number of distinct lows over time; BG percentiles "
-                                "by day; annotations showing profile change timing.",
+                                children="""This Dash app displays custom plots to help understand Nightscout data about
+                                blood sugar and treatments. It is currently a skeleton with ongoing work on
+                                expanding plot types. Coming soon: """
+                            ),
+                            html.Ul(
+                                children=[
+                                    html.Li(
+                                        "plots of the number of distinct lows over time"
+                                    ),
+                                    html.Li("BG percentiles by day"),
+                                    html.Li(
+                                        "annotations showing profile change timing"
+                                    ),
+                                ],
                                 className=default_spacing_class,
                             ),
                             html.Div(
@@ -135,6 +144,7 @@ def generate_ns_layout():
                         width=3,
                         xs={"width": 5, "offset": 0},
                         lg={"width": 3, "offset": 3},
+                        class_name="mr-3",
                     ),
                 ],
                 class_name=default_spacing_class,
@@ -187,6 +197,39 @@ def generate_ns_layout():
                         width=6,
                     ),
                     dbc.Col(
+                        [
+                            html.H3(children="Site change impact"),
+                            dbc.InputGroup(
+                                [
+                                    dbc.InputGroupText("Hours to bin together: "),
+                                    dbc.Input(
+                                        type="number",
+                                        min=1,
+                                        max=24,
+                                        step=1,
+                                        value=6,
+                                        id="site-change-graph-bin-hours",
+                                    ),
+                                ],
+                            ),
+                            dbc.RadioItems(
+                                options=[
+                                    {
+                                        "label": "Plot over entire site change",
+                                        "value": 1,
+                                    },
+                                    {"label": "Plot over time of day", "value": 2},
+                                ],
+                                value=1,
+                                id="site-change-graph-style",
+                                inline=True,
+                            ),
+                            dbc.Spinner(
+                                dcc.Graph(
+                                    id="site-change-graph",
+                                )
+                            ),
+                        ],
                         width=6,
                     ),
                 ],
