@@ -89,5 +89,5 @@ def update_table(bg_data, table_data, table_update, row_button_clicks, columns):
 
     return {
         "data": table_data,
-        "summary_text": f"{n_records} readings over {bg_data['date'].nunique()} days.",
+        "summary_text": f"{n_records} readings over {bg_data['date'].nunique()} days. Mean {bg.mean():.0f} (+/- {bg.std():.1f})",
     }
