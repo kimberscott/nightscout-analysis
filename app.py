@@ -16,6 +16,8 @@ from nightscout_dash.layout import generate_ns_layout
 
 import flask
 
+from nightscout_dash.plot_utils import add_light_style
+
 # Leave this in to make sure we load the callback!
 # TODO: create register_callbacks functions
 from nightscout_dash.update_data import load_nightscout_data
@@ -40,6 +42,12 @@ def update_graph(bg_data, timezone_name):
         figure = go.Figure()
     else:
         df = bg_data_json_to_df(bg_data, timezone_name)
+
+        # Downsample sgv events
+        df = df.loc[
+            (df["eventType"] == "mbg")
+            | ((df["eventType"] == "sgv") & (df.index % 10 == 0))
+        ]
 
         cgm_vs_mbg = (df["eventType"] == "sgv") * 0 + (df["eventType"] == "mbg") * 1
 
@@ -69,6 +77,7 @@ def update_graph(bg_data, timezone_name):
         xaxis_title="Date",
         yaxis_title="mg/dL",
     )
+    add_light_style(figure)
     return {
         "graph": figure,
     }

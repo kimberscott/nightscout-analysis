@@ -183,6 +183,7 @@ def update_figure(
                 math.ceil(basals_per_hour["avg_basal"].max() * 2) / 2.0,
             ],
         )
+    add_light_style(fig)
 
     return {
         "graph": fig,
