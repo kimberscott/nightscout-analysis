@@ -173,7 +173,7 @@ def update_figure(
     )
     fig.update_xaxes(
         dtick=60 * 60 * 1000,
-        tickformat="%I%p",
+        tickformat="%-I%p",
         ticklabelmode="period",
         range=[
             basals_per_hour["time_label"].min() - datetime.timedelta(minutes=5),
