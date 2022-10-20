@@ -8,6 +8,8 @@ import math
 import plotly.express as px
 import plotly.graph_objects as go
 
+from nightscout_dash.data_utils import bg_data_json_to_df, profile_json_to_df
+from nightscout_dash.plot_utils import add_light_style
 from nightscout_loader import (
     get_basal_per_hour,
 )
@@ -43,15 +45,8 @@ def update_figure(
     basal_rate_includes_scheduled,
 ):
 
-    all_bg_data = pd.read_json(bg_json, orient="split")
-    all_bg_data["datetime"] = pd.to_datetime(
-        all_bg_data["datetime"], utc=True
-    ).dt.tz_convert(timezone_name)
-
-    profiles = pd.read_json(profile_json, orient="split")
-    profiles["profile_start_datetime"] = pd.to_datetime(
-        profiles["profile_start_datetime"], utc=True
-    ).dt.tz_convert(timezone_name)
+    all_bg_data = bg_data_json_to_df(bg_json, timezone_name)
+    profiles = profile_json_to_df(profile_json, timezone_name)
 
     start_date = date.fromisoformat(start_date_str)
     end_date = date.fromisoformat(end_date_str)

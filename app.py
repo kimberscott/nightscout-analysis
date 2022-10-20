@@ -11,6 +11,7 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
 
+from nightscout_dash.data_utils import bg_data_json_to_df
 from nightscout_dash.layout import generate_ns_layout
 
 import flask
@@ -28,13 +29,16 @@ import nightscout_dash.basal_rate_plot
     },
     inputs={
         "bg_data": Input("all-bg-data", "data"),
+        "timezone_name": State(
+            component_id="timezone-name", component_property="value"
+        ),
     },
 )
-def update_graph(bg_data):
+def update_graph(bg_data, timezone_name):
     if not bg_data:
         figure = go.Figure()
     else:
-        df = pd.read_json(bg_data, orient="split")
+        df = bg_data_json_to_df(bg_data, timezone_name)
 
         cgm_vs_mbg = (df["eventType"] == "sgv") * 0 + (df["eventType"] == "mbg") * 1
 

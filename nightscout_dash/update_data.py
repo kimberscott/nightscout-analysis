@@ -12,6 +12,7 @@ from dash import (
 )
 import datetime
 
+from nightscout_dash.data_utils import bg_data_json_to_df, profile_json_to_df
 from nightscout_loader import (
     fetch_nightscout_data,
     fetch_profile_data,
@@ -109,8 +110,9 @@ def load_nightscout_data(
         updated_bg_data = all_bg_data.to_json(orient="split", date_unit="ns")
 
     else:
-        all_bg_data = pd.read_json(bg_data, orient="split")
-        profiles = pd.read_json(profile_json, orient="split")
+        all_bg_data = bg_data_json_to_df(bg_data, timezone_name)
+        profiles = profile_json_to_df(profile_json, timezone_name)
+
         # Check what dates we have already
         already_loaded_dates = pd.read_json(already_loaded_date_strs, typ="series")
         # See which requested dates are new
@@ -137,8 +139,10 @@ def load_nightscout_data(
                 for (i_start, i_end) in zip(segment_start_indices, segment_end_indices):
                     new_bg_dataframes.append(
                         fetch_nightscout_data(
+                            nightscout_url,
                             new_dates[i_start],
                             new_dates[i_end] + datetime.timedelta(days=1),
+                            local_timezone_name=timezone_name,
                         )
                     )
             except requests.exceptions.JSONDecodeError:
@@ -151,6 +155,7 @@ def load_nightscout_data(
                     "nightscout_error_open": True,
                 }
             all_bg_data = pd.concat(new_bg_dataframes)
+            all_bg_data.sort_values(by="datetime", inplace=True)
             updated_bg_data = all_bg_data.to_json(orient="split", date_unit="ns")
 
             already_loaded_dates = pd.concat(

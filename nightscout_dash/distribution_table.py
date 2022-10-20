@@ -3,6 +3,7 @@ from dash import Input, Output, State, callback, ctx, dash_table, html
 import dash_bootstrap_components as dbc
 import pandas as pd
 
+from nightscout_dash.data_utils import bg_data_json_to_df
 
 distribution_table_column_contents = [
     html.H3(children="CGM distribution summary"),
@@ -65,12 +66,16 @@ distribution_table_column_contents = [
         "table_update": Input("distribution-summary-table", "data_timestamp"),
         "row_button_clicks": Input("add-row-button", "n_clicks"),
         "columns": State("distribution-summary-table", "columns"),
+        "timezone_name": State(
+            component_id="timezone-name", component_property="value"
+        ),
     },
 )
-def update_table(bg_data, table_data, table_update, row_button_clicks, columns):
+def update_table(
+    bg_data, table_data, table_update, row_button_clicks, columns, timezone_name
+):
 
-    # TODO: need specific load function for json-> dataframe for times
-    bg_data = pd.read_json(bg_data, orient="split")
+    bg_data = bg_data_json_to_df(bg_data, timezone_name)
     bg = bg_data.loc[bg_data["eventType"] == "sgv", "bg"]
     n_records = len(bg)
 
