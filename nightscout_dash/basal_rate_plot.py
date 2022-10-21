@@ -110,6 +110,8 @@ def update_figure(
         symbol="date",
         line_dash="date",
         markers=True,
+        line_shape="spline",
+        render_mode="svg",
     )
     fig.update_traces(
         line=dict(width=1),
@@ -117,7 +119,6 @@ def update_figure(
         legendrank=1001,
         legendgrouptitle_text="Individual date",
         marker_size=5,
-        line_shape="spline",
     )
 
     # Actual basal range

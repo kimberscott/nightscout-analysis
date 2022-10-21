@@ -160,18 +160,16 @@ def generate_ns_layout():
             dbc.Row(
                 [
                     dbc.Col(
-                        dbc.Spinner(distribution_table_column_contents),
+                        distribution_table_column_contents,
                         width=6,
                     ),
                     dbc.Col(
                         [
-                            dcc.Graph(
-                                id="percentile-by-day-graph",
-                                figure={
-                                    "layout": {
-                                        "title": "Placeholder: stacked area plot of time per day in <br> each of the ranges defined in the table to the left."
-                                    }
-                                },
+                            html.H3(children="Time in range per day"),
+                            dbc.Spinner(
+                                dcc.Graph(
+                                    id="range-fraction-by-day-graph",
+                                )
                             ),
                         ],
                         width=6,
