@@ -13,6 +13,11 @@ distribution_table_column_contents = [
         row_deletable=True,
         columns=[
             {
+                "id": "label",
+                "name": "Label",
+                "editable": True,
+            },
+            {
                 "id": "lower",
                 "name": "Lower limit",
                 "editable": True,
@@ -41,6 +46,7 @@ distribution_table_column_contents = [
             data={
                 "lower": [None, 54, 63, 130],
                 "upper": [54, 63, 130, None],
+                "label": ["Very low", "Low", "In range", "High"],
             }
         ).to_dict(orient="records"),
     ),
@@ -78,6 +84,7 @@ def update_table(
     bg_data = bg_data_json_to_df(bg_data, timezone_name)
     bg = bg_data.loc[bg_data["eventType"] == "sgv", "bg"]
     n_records = len(bg)
+    existing_labels = []
 
     if ctx.triggered_id == "add-row-button":
         table_data.append({c["id"]: "" for c in columns})
@@ -88,6 +95,14 @@ def update_table(
                 upper = float(row["upper"] or np.inf)
                 row["BG range"] = f"[{lower:.0f}, {upper:.0f})"
                 row["percent"] = sum((bg >= lower) & (bg < upper)) / n_records
+
+                # Enforce uniqueness of labels
+                label = row["label"]
+                while label in existing_labels:
+                    label = label + "_1"
+                row["label"] = label
+                existing_labels.append(label)
+
             except ValueError:
                 row["BG range"] = "N/A"
                 row["percent"] = np.nan
