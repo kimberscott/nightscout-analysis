@@ -1,4 +1,4 @@
-from dash import Input, Output, callback
+from dash import Input, Output, State, callback
 import pandas as pd
 
 from nightscout_dash.data_utils import bg_data_json_to_df
@@ -14,10 +14,10 @@ import plotly.graph_objects as go
     },
     inputs={
         "bg_json": Input(
-            "subset-bg-data",
-            "data",
+            component_id="subset-bg-data",
+            component_property="data",
         ),
-        "timezone_name": Input(
+        "timezone_name": State(
             component_id="timezone-name",
             component_property="value",
         ),
@@ -90,7 +90,6 @@ def update_figure(
             site_change_summary = site_change_summary.loc[
                 site_change_summary["n"] > site_change_summary["n"].median() / 10
             ]
-
             fig = px.line(
                 site_change_summary,
                 y="mean_bg",
