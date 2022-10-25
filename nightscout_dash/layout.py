@@ -6,7 +6,12 @@ import zoneinfo
 from dotenv import load_dotenv
 import os
 
-from nightscout_dash.distribution_table import distribution_table_column_contents
+from nightscout_dash.basal_rate_plot import basal_rate_plot_column_contents
+from nightscout_dash.distribution_table import (
+    distribution_table_column_contents,
+    range_plot_column_contents,
+)
+from nightscout_dash.site_change_plot import site_change_plot_column_contents
 
 load_dotenv()
 
@@ -117,9 +122,6 @@ def generate_ns_layout():
                             ),
                             html.Ul(
                                 children=[
-                                    html.Li(
-                                        "plots of the number of distinct lows over time"
-                                    ),
                                     html.Li("BG percentiles by day"),
                                     html.Li(
                                         "annotations showing profile change timing"
@@ -164,14 +166,7 @@ def generate_ns_layout():
                         width=6,
                     ),
                     dbc.Col(
-                        [
-                            html.H3(children="Time in range per day"),
-                            dbc.Spinner(
-                                dcc.Graph(
-                                    id="range-fraction-by-day-graph",
-                                )
-                            ),
-                        ],
+                        range_plot_column_contents,
                         width=6,
                     ),
                 ],
@@ -179,55 +174,11 @@ def generate_ns_layout():
             dbc.Row(
                 [
                     dbc.Col(
-                        [
-                            html.H3(children="Basal rates"),
-                            dbc.Switch(
-                                id="basal-rate-includes-scheduled",
-                                label="Include regularly-scheduled basals (when Control IQ was not active or we don't have data)",
-                                value=False,
-                            ),
-                            dbc.Spinner(
-                                dcc.Graph(
-                                    id="basal-rate-graph",
-                                )
-                            ),
-                        ],
+                        basal_rate_plot_column_contents,
                         width=6,
                     ),
                     dbc.Col(
-                        [
-                            html.H3(children="Site change impact"),
-                            dbc.InputGroup(
-                                [
-                                    dbc.InputGroupText("Hours to bin together: "),
-                                    dbc.Input(
-                                        type="number",
-                                        min=1,
-                                        max=24,
-                                        step=1,
-                                        value=6,
-                                        id="site-change-graph-bin-hours",
-                                    ),
-                                ],
-                            ),
-                            dbc.RadioItems(
-                                options=[
-                                    {
-                                        "label": "Plot over entire site change",
-                                        "value": 1,
-                                    },
-                                    {"label": "Plot over time of day", "value": 2},
-                                ],
-                                value=1,
-                                id="site-change-graph-style",
-                                inline=True,
-                            ),
-                            dbc.Spinner(
-                                dcc.Graph(
-                                    id="site-change-graph",
-                                )
-                            ),
-                        ],
+                        site_change_plot_column_contents,
                         width=6,
                     ),
                 ],
