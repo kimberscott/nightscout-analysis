@@ -308,6 +308,56 @@ class DistributionTable(AnalysisComponent):
                 min_date = range_summary_long["date"].min()
                 max_date = range_summary_long["date"].max()
                 combined_fig.update_xaxes(range=[min_date, max_date])
+
+                # Add vertical markers for profile changes.
+                # TODO: when adding these to a second plot, make a utility to add the lines to a given figure with
+                # min/max dates & optional text labels
+                distinct_profiles = profile_data.groupby("profile_id")[
+                    ["name", "profile_start_datetime"]
+                ].take(indices=[0])
+                distinct_profiles = distinct_profiles.loc[
+                    (distinct_profiles["profile_start_datetime"].dt.date >= min_date)
+                    & (distinct_profiles["profile_start_datetime"].dt.date <= max_date)
+                ].reset_index()
+                for index, row in distinct_profiles.iterrows():
+                    # # combined_fig.add_vline would be convenient here, but I'm getting errors about not being able to
+                    # # add timestamps and integers
+                    # combined_fig.add_vline(
+                    #     x=row["profile_start_datetime"],
+                    #     annotation_text=row["name"],
+                    #     annotation_position="top left",
+                    #     line_color="rgb(0.2,0.2,0.2)",
+                    #     line_width=2,
+                    #     line_dash="dash",
+                    # )
+                    combined_fig.add_trace(
+                        go.Scatter(
+                            x=[row["profile_start_datetime"]] * 2,
+                            y=[0, 1],
+                            mode="lines",
+                            name="Profile change",
+                            legendgroup="profile_changes",
+                            showlegend=(index == 0),
+                            line={
+                                "color": "rgb(0.2,0.2,0.2)",
+                                "width": 2,
+                                "dash": "dash",
+                            },
+                        ),
+                        secondary_y=False,
+                    )
+                    # Show annotation separately so we can rotate it. We do lose the ability to show/hide along with the
+                    # trace (see https://github.com/plotly/plotly.js/issues/4680 for feature request)
+                    combined_fig.add_annotation(
+                        x=row["profile_start_datetime"],
+                        y=0.5,
+                        text=row["name"],
+                        showarrow=False,
+                        arrowhead=1,
+                        textangle=90,
+                        bgcolor="white",
+                        opacity=0.75,
+                    )
             combined_fig.update_yaxes(
                 dtick=1,
                 secondary_y=True,
