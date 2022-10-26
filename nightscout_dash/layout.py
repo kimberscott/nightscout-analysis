@@ -1,17 +1,11 @@
 from dash import html, dcc
 import dash_bootstrap_components as dbc
-import datetime
-import tzlocal
-import zoneinfo
 from dotenv import load_dotenv
-import os
 
-from nightscout_dash.basal_rate_plot import basal_rate_plot_column_contents
-from nightscout_dash.distribution_table import (
-    distribution_table_column_contents,
-    range_plot_column_contents,
-)
-from nightscout_dash.site_change_plot import site_change_plot_column_contents
+from nightscout_dash.basal_rate_plot import BasalRatePlot
+from nightscout_dash.distribution_table import DistributionTable
+from nightscout_dash.site_change_plot import SiteChangePlot
+from nightscout_dash.update_data import DataUpdater
 
 load_dotenv()
 
@@ -19,84 +13,6 @@ load_dotenv()
 def generate_ns_layout():
 
     default_spacing_class = "mb-3"
-
-    select_and_check = [
-        html.H2(children="Select data"),
-        dbc.InputGroup(
-            [
-                dbc.InputGroupText("Time zone"),
-                dbc.Select(
-                    id="timezone-name",
-                    options=[
-                        {"label": zone_name, "value": zone_name}
-                        for zone_name in zoneinfo.available_timezones()
-                    ],
-                    value=os.getenv(
-                        "LOCALZONE_NAME",
-                        default=tzlocal.get_localzone_name(),
-                    ),
-                ),
-                dbc.Tooltip(
-                    "Set a LOCALZONE_NAME environment variable to control the default value.",
-                    target="timezone-name",
-                ),
-            ],
-            className="mb-2",
-        ),
-        dbc.InputGroup(
-            [
-                dbc.InputGroupText("Date range"),
-                dcc.DatePickerRange(
-                    id="data-date-range",
-                    max_date_allowed=datetime.date.today(),
-                    end_date=datetime.date.today(),
-                    start_date=datetime.date.today() - datetime.timedelta(days=7),
-                    className="form-control",
-                ),
-            ],
-            className="mb-2",
-        ),
-        dbc.InputGroup(
-            [
-                dbc.InputGroupText("Nightscout URL"),
-                dcc.Input(
-                    id="nightscout-url",
-                    type="text",
-                    value=os.getenv("NIGHTSCOUT_URL"),
-                    className="form-control",
-                ),
-            ],
-            className="mb-2",
-            id="nightscout-url-input-group",
-        ),
-        dbc.Alert(
-            children="Error loading data from Nightscout",
-            color="danger",
-            id="nightscout-error",
-            is_open=False,
-        ),
-        dbc.Tooltip(
-            "Set a NIGHTSCOUT_URL environment variable to control the default value.",
-            target="nightscout-url-input-group",
-        ),
-        dbc.Row(
-            [
-                dbc.Button(
-                    "Submit",
-                    outline=True,
-                    color="primary",
-                    className="ms-auto w-auto",
-                    id="submit-button",
-                ),
-            ]
-        ),
-        dbc.Spinner(
-            dcc.Graph(
-                id="loaded-data-graph",
-                style={"height": "300px"},
-            )
-        ),
-    ]
 
     ns_layout = html.Div(
         children=[
@@ -106,7 +22,7 @@ def generate_ns_layout():
             dbc.Row(
                 [
                     dbc.Col(
-                        select_and_check,
+                        DataUpdater().layout_contents,
                         width=5,
                         xs={"width": 6, "offset": 0},
                         lg={"width": 5, "offset": 0},
@@ -159,26 +75,15 @@ def generate_ns_layout():
                     ),
                 ]
             ),
+            dbc.Row(DistributionTable().layout_contents),
             dbc.Row(
                 [
                     dbc.Col(
-                        distribution_table_column_contents,
+                        BasalRatePlot().layout_contents,
                         width=6,
                     ),
                     dbc.Col(
-                        range_plot_column_contents,
-                        width=6,
-                    ),
-                ],
-            ),
-            dbc.Row(
-                [
-                    dbc.Col(
-                        basal_rate_plot_column_contents,
-                        width=6,
-                    ),
-                    dbc.Col(
-                        site_change_plot_column_contents,
+                        SiteChangePlot().layout_contents,
                         width=6,
                     ),
                 ],

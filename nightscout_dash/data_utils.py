@@ -1,4 +1,7 @@
+from typing import List
+
 import pandas as pd
+import abc
 
 
 def bg_data_json_to_df(bg_json: str, timezone_name: str) -> pd.DataFrame:
@@ -31,3 +34,21 @@ def profile_json_to_df(profile_json: str, timezone_name: str) -> pd.DataFrame:
         profiles["profile_start_datetime"], utc=True
     ).dt.tz_convert(timezone_name)
     return profiles
+
+
+class AnalysisComponent(abc.ABC):
+    @staticmethod
+    @abc.abstractmethod
+    def register_callbacks() -> None:
+        """
+        Register any callbacks necessary for this component.
+        """
+        pass
+
+    @property
+    @abc.abstractmethod
+    def layout_contents(self) -> List:
+        """
+        :return:
+        """
+        pass

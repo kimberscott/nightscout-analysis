@@ -1,4 +1,9 @@
-def add_light_style(fig):
+def add_light_style(fig) -> None:
+    """
+    Add some basic common styling to a figure for a consistent look across graphs.
+    :param fig: Plotly Figure object
+    :return: None
+    """
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
