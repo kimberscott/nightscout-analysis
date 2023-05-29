@@ -227,7 +227,7 @@ def get_basal_per_hour(
 
     # First find all times a temp basal was set, and add a column to show when that temp basal ended
     temp_basal_rates = all_bg_data.loc[
-        ~pd.isna(all_bg_data["duration"]),
+        (~pd.isna(all_bg_data["duration"])) & (~pd.isna(all_bg_data["absolute"])),
         [
             "datetime",
             "duration",
@@ -427,7 +427,7 @@ def get_basal_per_hour(
 
     basals_per_hour = basals_per_hour.assign(
         avg_basal=get_windowed_series(basals_per_min["absolute"], 60),
-        is_adjusted=get_windowed_series(basals_per_min["absolute"], 60) > 0,
+        is_adjusted=get_windowed_series(basals_per_min["is_adjusted"], 60) > 0,
         time_label=pd.to_datetime(
             start_datetime
             + (basals_per_hour.index - start_datetime) % datetime.timedelta(days=1)
