@@ -17,6 +17,7 @@ import os
 import requests.exceptions
 import tzlocal
 import zoneinfo
+from urllib.parse import urlparse, urlsplit
 
 
 from nightscout_dash.data_utils import (
@@ -178,10 +179,15 @@ class DataUpdater(AnalysisComponent):
         ):
             # TODO: if start date or end date are None, gentle error
 
-            # Standardize format of nightscout_url for storage, so we don't treat it as an actual change if a trailing slash
-            # is added/removed
-            while nightscout_url and nightscout_url[-1] == "/":
-                nightscout_url = nightscout_url[:-1]
+            # Ensure that the URL starts with http:// or https://
+            parsed_url = urlsplit(nightscout_url)
+            if not parsed_url.scheme:
+                nightscout_url = "https://" + nightscout_url
+
+            # Extract the root URL and remove any trailing slash so we don't treat it as an actual change if a
+            # trailing slash is added/removed
+            parsed_url = urlparse(nightscout_url)
+            nightscout_url = f"{parsed_url.scheme}://{parsed_url.netloc}".rstrip("/")
 
             # First find out what range of data we actually need to fetch from the server, if any
             requested_dates = pd.date_range(
